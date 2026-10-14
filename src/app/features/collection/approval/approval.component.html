@@ -1,0 +1,101 @@
+<app-page-header title="Collection Approval" subtitle="Review pending collections, then approve or reject them one by one or in bulk">
+  <button *appHasPermission="'collection.approve'" type="button" class="btn btn-success" [disabled]="selectedCount() === 0 || working()" (click)="approveSelected()">
+    @if (working()) {
+      <span class="spinner-border spinner-border-sm me-1"></span>
+    } @else {
+      <i class="bi bi-check2-all me-1"></i>
+    }
+    Approve selected ({{ selectedCount() }})
+  </button>
+</app-page-header>
+
+<app-collection-filters [value]="filters()" [shifts]="shifts()" [showFarmer]="true" (valueChange)="onFilters($event)" />
+
+<app-data-table
+  [columns]="columns()"
+  [items]="items()"
+  [total]="total()"
+  [loading]="loading()"
+  [error]="error()"
+  [page]="query.page ?? 1"
+  [pageSize]="query.pageSize ?? 20"
+  searchPlaceholder="Search collection no., farmer name or code..."
+  emptyTitle="Nothing waiting for approval"
+  emptyMessage="All collections for the selected filters have been processed."
+  (queryChange)="onQuery($event)"
+  (retry)="load()"
+>
+  <div tableActions class="d-flex gap-1">
+    <button *appHasPermission="'collection.approve'" type="button" class="btn btn-sm btn-outline-secondary" (click)="selectPage()">Select page</button>
+    @if (selectedCount() > 0) {
+      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="clearSelection()">Clear ({{ selectedCount() }})</button>
+    }
+  </div>
+
+  <ng-template appColumn="select" let-row>
+    <input
+      type="checkbox"
+      class="form-check-input"
+      [checked]="isSelected(row.id)"
+      [disabled]="!canSelect(row)"
+      [attr.aria-label]="'Select ' + row.collectionNumber"
+      (change)="toggle(row.id)"
+    />
+  </ng-template>
+  <ng-template appColumn="farmerName" let-row>
+    {{ row.farmerName }} <span class="text-muted small">{{ row.farmerCode }}</span>
+  </ng-template>
+  <ng-template appColumn="qualityResult" let-row>
+    @if (row.qualityResult) {
+      <app-status-badge [status]="row.qualityResult" [color]="qualityColor(row.qualityResult)" />
+    } @else {
+      <span class="text-muted">Not tested</span>
+    }
+  </ng-template>
+  <ng-template appRowActions let-row>
+    <button type="button" class="btn btn-sm btn-outline-secondary me-1" (click)="detailId.set(row.id)">
+      <i class="bi bi-eye"></i>
+    </button>
+    <button
+      *appHasPermission="'collection.approve'"
+      type="button"
+      class="btn btn-sm btn-success me-1"
+      [disabled]="!canSelect(row) || working()"
+      [attr.title]="canSelect(row) ? null : 'Quality test failed: cannot approve'"
+      (click)="approveOne(row)"
+    >
+      <i class="bi bi-check2"></i> Approve
+    </button>
+    <button *appHasPermission="'collection.reject'" type="button" class="btn btn-sm btn-outline-danger" (click)="rejectTarget.set(row)">
+      <i class="bi bi-x-lg"></i> Reject
+    </button>
+  </ng-template>
+</app-data-table>
+
+<app-collection-detail-modal [collectionId]="detailId()" (closed)="detailId.set(null)" />
+<app-reject-collection-modal [collection]="rejectTarget()" (closed)="rejectTarget.set(null)" (saved)="onRejected()" />
+
+<app-modal [open]="bulkResult() !== null" title="Bulk approval result" size="lg" (closed)="bulkResult.set(null)">
+  @if (bulkResult(); as r) {
+    <p>
+      <strong>{{ r.approved }}</strong> of {{ r.total }} approved,
+      <strong class="text-danger">{{ r.failed }}</strong> failed.
+    </p>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Collection</th><th>Reason</th></tr></thead>
+        <tbody>
+          @for (f of failedRows(); track f.id) {
+            <tr>
+              <td>{{ f.number ?? '#' + f.id }}</td>
+              <td class="text-danger">{{ f.message }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-light" (click)="bulkResult.set(null)">Close</button>
+  </div>
+</app-modal>

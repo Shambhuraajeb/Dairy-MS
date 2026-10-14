@@ -1,0 +1,85 @@
+<div class="login-page">
+  <div class="login-brand d-none d-lg-flex">
+    <div>
+      <div class="login-logo"><i class="bi bi-droplet-fill"></i></div>
+      <h1>Dairy Management System</h1>
+      <p>Milk collection, farmer settlements, inventory, sales, delivery and billing in one place.</p>
+    </div>
+  </div>
+
+  <div class="login-panel">
+    <div class="login-card card">
+      <div class="card-body p-4 p-md-5">
+        <div class="d-lg-none text-center mb-3 login-logo-sm"><i class="bi bi-droplet-fill"></i></div>
+        <h2 class="h4 mb-1">Sign in</h2>
+        <p class="text-muted mb-4">Enter your credentials to continue.</p>
+
+        @if (error()) {
+          <div class="alert alert-danger py-2 d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+            <div>{{ error() }}</div>
+          </div>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person"></i></span>
+              <input
+                id="username"
+                type="text"
+                class="form-control"
+                formControlName="username"
+                autocomplete="username"
+                autofocus
+                [class.is-invalid]="form.controls.username.invalid && form.controls.username.touched"
+              />
+            </div>
+            @if (form.controls.username.invalid && form.controls.username.touched) {
+              <div class="invalid-feedback d-block">Username is required.</div>
+            }
+          </div>
+
+          <div class="mb-4">
+            <label for="password" class="form-label">Password</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock"></i></span>
+              <input
+                id="password"
+                [type]="showPassword() ? 'text' : 'password'"
+                class="form-control"
+                formControlName="password"
+                autocomplete="current-password"
+                [class.is-invalid]="form.controls.password.invalid && form.controls.password.touched"
+              />
+              <button type="button" class="btn btn-outline-secondary" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+                <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+              </button>
+            </div>
+            @if (form.controls.password.invalid && form.controls.password.touched) {
+              <div class="invalid-feedback d-block">Password is required.</div>
+            }
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2" [disabled]="loading()">
+            @if (loading()) {
+              <span class="spinner-border spinner-border-sm me-2"></span>Signing in...
+            } @else {
+              Sign in
+            }
+          </button>
+        </form>
+
+        <div class="demo-hint mt-4">
+          <div class="small text-muted mb-2"><i class="bi bi-info-circle me-1"></i>Demo accounts (password <code>Admin&#64;123</code>) &ndash; click to fill</div>
+          <div class="d-flex flex-wrap gap-1">
+            @for (u of demoUsers; track u.username) {
+              <button type="button" class="btn btn-sm btn-outline-secondary demo-chip" (click)="fillDemo(u.username)" [attr.title]="u.role">{{ u.username }}</button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

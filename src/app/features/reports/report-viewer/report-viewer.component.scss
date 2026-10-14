@@ -1,0 +1,86 @@
+// ViewEncapsulation.None: rules below are global, print rules are scoped by the body class this component toggles.
+.report-viewer {
+  .report-table {
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    tfoot .report-total-row td {
+      font-weight: 700;
+      background: #f3f4f6;
+      border-top: 2px solid #d1d5db;
+    }
+  }
+}
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  body.report-printing {
+    background: #fff !important;
+
+    app-sidebar,
+    app-topbar,
+    app-breadcrumb,
+    app-toast-container,
+    app-confirm-dialog,
+    .sidebar-backdrop,
+    .no-print {
+      display: none !important;
+    }
+
+    .app-shell,
+    .app-main,
+    .app-content {
+      display: block !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .print-only {
+      display: block !important;
+    }
+
+    .card {
+      border: 0 !important;
+      box-shadow: none !important;
+      break-inside: auto;
+    }
+
+    .card-body {
+      padding: 0 !important;
+    }
+
+    .table-responsive {
+      overflow: visible !important;
+    }
+
+    .report-viewer .table {
+      font-size: 10px;
+
+      th,
+      td {
+        padding: 2px 4px !important;
+      }
+
+      thead {
+        display: table-header-group;
+      }
+
+      tr {
+        break-inside: avoid;
+      }
+    }
+  }
+}

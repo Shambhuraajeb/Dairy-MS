@@ -1,0 +1,238 @@
+<app-page-header [title]="isNew() ? 'New Rate Chart' : (chart()?.name ?? 'Rate Chart')" subtitle="Rates are applied by milk type, collection center and effective date">
+  @if (chart(); as c) {
+    <app-status-badge [status]="c.status" />
+  }
+  <a class="btn btn-outline-secondary" routerLink="/collection/rate-charts"><i class="bi bi-arrow-left me-1"></i>Back</a>
+  @if (chart(); as c) {
+    @if (c.status === 'Draft' && editable()) {
+      <button type="button" class="btn btn-success" [disabled]="activating() || saving()" (click)="activate()">
+        @if (activating()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        } @else {
+          <i class="bi bi-check2-circle me-1"></i>
+        }
+        Activate
+      </button>
+    }
+  }
+</app-page-header>
+
+@if (loading()) {
+  <app-loading text="Loading rate chart..." />
+} @else if (loadError()) {
+  <div class="alert alert-danger d-flex justify-content-between align-items-center">
+    <span>{{ loadError() }}</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="reload()">Retry</button>
+  </div>
+} @else {
+  @if (!isNew() && chart() && !editable()) {
+    <div class="alert alert-info">
+      This rate chart is <strong>{{ chart()?.status }}</strong>@if (chart()?.status !== 'Draft') {
+        and cannot be edited. Create a new chart to change rates; activating it supersedes this one
+      }.
+    </div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Chart details</div>
+      <div class="card-body pb-1">
+        <div class="row">
+          <div class="col-md-6">
+            <app-form-field label="Name" inputId="rcName" [control]="form.controls.name">
+              <input id="rcName" type="text" maxlength="150" class="form-control" formControlName="name" />
+            </app-form-field>
+          </div>
+          <div class="col-md-3">
+            <app-form-field label="Milk type" inputId="rcMilk" [control]="form.controls.milkType">
+              <select id="rcMilk" class="form-select" formControlName="milkType">
+                @for (m of milkTypes; track m) {
+                  <option [value]="m">{{ m }}</option>
+                }
+              </select>
+            </app-form-field>
+          </div>
+          <div class="col-md-3">
+            <app-form-field label="Collection center" inputId="rcCenter" hint="Empty = all centers">
+              <select id="rcCenter" class="form-select" formControlName="collectionCenterId">
+                <option [ngValue]="null">All centers</option>
+                @for (c of centers(); track c.id) {
+                  <option [ngValue]="c.id">{{ c.name }}</option>
+                }
+              </select>
+            </app-form-field>
+          </div>
+          <div class="col-md-3">
+            <app-form-field label="Effective from" inputId="rcFrom" [control]="form.controls.effectiveFrom">
+              <input id="rcFrom" type="date" class="form-control" formControlName="effectiveFrom" />
+            </app-form-field>
+          </div>
+          <div class="col-md-3">
+            <app-form-field label="Effective to" inputId="rcTo" hint="Empty = open ended">
+              <input id="rcTo" type="date" class="form-control" formControlName="effectiveTo" [class.is-invalid]="form.errors?.['dateRange']" />
+            </app-form-field>
+            @if (form.errors?.['dateRange']) {
+              <div class="text-danger small mb-3 mt-n2">End date cannot be before the start date.</div>
+            }
+          </div>
+          <div class="col-md-3">
+            <app-form-field label="Calculation method" inputId="rcMethod" [control]="form.controls.calculationMethod">
+              <select id="rcMethod" class="form-select" formControlName="calculationMethod">
+                <option value="Slab">Slab (FAT x SNF grid)</option>
+                <option value="Formula">Formula (per point)</option>
+              </select>
+            </app-form-field>
+          </div>
+          <div class="col-md-12">
+            <app-form-field label="Description" inputId="rcDesc" [control]="form.controls.description">
+              <input id="rcDesc" type="text" maxlength="500" class="form-control" formControlName="description" />
+            </app-form-field>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (method() === 'Formula') {
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Formula parameters</div>
+        <div class="card-body pb-1">
+          <p class="text-muted small">Rate = base rate + (FAT - base FAT) x FAT rate per point + (SNF - base SNF) x SNF rate per point, limited to the min / max rate.</p>
+          <div class="row">
+            <div class="col-6 col-md-3">
+              <app-form-field label="Base rate / L" inputId="rcBaseRate" [control]="form.controls.baseRatePerLiter">
+                <input id="rcBaseRate" type="number" step="0.0001" class="form-control" formControlName="baseRatePerLiter" />
+              </app-form-field>
+            </div>
+            <div class="col-6 col-md-3">
+              <app-form-field label="Base FAT" inputId="rcBaseFat" [control]="form.controls.baseFat">
+                <input id="rcBaseFat" type="number" step="0.01" class="form-control" formControlName="baseFat" />
+              </app-form-field>
+            </div>
+            <div class="col-6 col-md-3">
+              <app-form-field label="Base SNF" inputId="rcBaseSnf" [control]="form.controls.baseSnf">
+                <input id="rcBaseSnf" type="number" step="0.01" class="form-control" formControlName="baseSnf" />
+              </app-form-field>
+            </div>
+            <div class="col-6 col-md-3"></div>
+            <div class="col-6 col-md-3">
+              <app-form-field label="FAT rate / point" inputId="rcFatRate" [control]="form.controls.fatRatePerPoint">
+                <input id="rcFatRate" type="number" step="0.0001" class="form-control" formControlName="fatRatePerPoint" />
+              </app-form-field>
+            </div>
+            <div class="col-6 col-md-3">
+              <app-form-field label="SNF rate / point" inputId="rcSnfRate" [control]="form.controls.snfRatePerPoint">
+                <input id="rcSnfRate" type="number" step="0.0001" class="form-control" formControlName="snfRatePerPoint" />
+              </app-form-field>
+            </div>
+            <div class="col-6 col-md-3">
+              <app-form-field label="Min rate / L" inputId="rcMin" [control]="form.controls.minRatePerLiter">
+                <input id="rcMin" type="number" step="0.0001" class="form-control" formControlName="minRatePerLiter" />
+              </app-form-field>
+            </div>
+            <div class="col-6 col-md-3">
+              <app-form-field label="Max rate / L" inputId="rcMax" [control]="form.controls.maxRatePerLiter" hint="Optional">
+                <input id="rcMax" type="number" step="0.0001" class="form-control" formControlName="maxRatePerLiter" />
+              </app-form-field>
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Slab details ({{ details.length }})</span>
+          @if (editable()) {
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="addRow()">
+              <i class="bi bi-plus-lg me-1"></i>Add slab
+            </button>
+          }
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>FAT from</th><th>FAT to</th><th>SNF from</th><th>SNF to</th>
+                <th>Rate / L</th><th>Bonus / L</th><th>Penalty / L</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody formArrayName="details">
+              @for (g of details.controls; track g; let i = $index) {
+                <tr [formGroupName]="i">
+                  <td><input type="number" step="0.01" class="form-control form-control-sm" formControlName="fatFrom" aria-label="FAT from" [class.is-invalid]="g.controls.fatFrom.invalid && g.controls.fatFrom.touched" /></td>
+                  <td><input type="number" step="0.01" class="form-control form-control-sm" formControlName="fatTo" aria-label="FAT to" [class.is-invalid]="g.controls.fatTo.invalid && g.controls.fatTo.touched" /></td>
+                  <td><input type="number" step="0.01" class="form-control form-control-sm" formControlName="snfFrom" aria-label="SNF from" [class.is-invalid]="g.controls.snfFrom.invalid && g.controls.snfFrom.touched" /></td>
+                  <td><input type="number" step="0.01" class="form-control form-control-sm" formControlName="snfTo" aria-label="SNF to" [class.is-invalid]="g.controls.snfTo.invalid && g.controls.snfTo.touched" /></td>
+                  <td><input type="number" step="0.0001" class="form-control form-control-sm" formControlName="rate" aria-label="Rate" [class.is-invalid]="g.controls.rate.invalid && g.controls.rate.touched" /></td>
+                  <td><input type="number" step="0.0001" class="form-control form-control-sm" formControlName="bonusPerLiter" aria-label="Bonus" /></td>
+                  <td><input type="number" step="0.0001" class="form-control form-control-sm" formControlName="penaltyPerLiter" aria-label="Penalty" /></td>
+                  <td class="text-end">
+                    @if (editable()) {
+                      <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeRow(i)" aria-label="Remove slab">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="8" class="text-center text-muted py-4">No slabs yet. Add at least one slab before activating.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="card-footer text-muted small">A collection matches the slab where FAT from &le; FAT &lt; FAT to (the top slab includes its upper bound). Slabs must not overlap.</div>
+      </div>
+    }
+
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Quality bonus and penalty (per liter)</div>
+      <div class="card-body pb-1">
+        <div class="row">
+          <div class="col-6 col-md-3">
+            <app-form-field label="Bonus if FAT at least" inputId="rcBonusFat" [control]="form.controls.bonusMinFat" hint="Optional">
+              <input id="rcBonusFat" type="number" step="0.01" class="form-control" formControlName="bonusMinFat" />
+            </app-form-field>
+          </div>
+          <div class="col-6 col-md-3">
+            <app-form-field label="Bonus if SNF at least" inputId="rcBonusSnf" [control]="form.controls.bonusMinSnf" hint="Optional">
+              <input id="rcBonusSnf" type="number" step="0.01" class="form-control" formControlName="bonusMinSnf" />
+            </app-form-field>
+          </div>
+          <div class="col-6 col-md-3">
+            <app-form-field label="Quality bonus / L" inputId="rcBonus" [control]="form.controls.qualityBonusPerLiter">
+              <input id="rcBonus" type="number" step="0.0001" class="form-control" formControlName="qualityBonusPerLiter" />
+            </app-form-field>
+          </div>
+          <div class="col-md-3 d-none d-md-block"></div>
+          <div class="col-6 col-md-3">
+            <app-form-field label="Penalty if FAT below" inputId="rcPenFat" [control]="form.controls.penaltyBelowFat" hint="Optional">
+              <input id="rcPenFat" type="number" step="0.01" class="form-control" formControlName="penaltyBelowFat" />
+            </app-form-field>
+          </div>
+          <div class="col-6 col-md-3">
+            <app-form-field label="Penalty if SNF below" inputId="rcPenSnf" [control]="form.controls.penaltyBelowSnf" hint="Optional">
+              <input id="rcPenSnf" type="number" step="0.01" class="form-control" formControlName="penaltyBelowSnf" />
+            </app-form-field>
+          </div>
+          <div class="col-6 col-md-3">
+            <app-form-field label="Quality penalty / L" inputId="rcPenalty" [control]="form.controls.qualityPenaltyPerLiter">
+              <input id="rcPenalty" type="number" step="0.0001" class="form-control" formControlName="qualityPenaltyPerLiter" />
+            </app-form-field>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (editable()) {
+      <div class="d-flex gap-2 justify-content-end mb-4">
+        <a class="btn btn-light" routerLink="/collection/rate-charts">Cancel</a>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          @if (saving()) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          }
+          <i class="bi bi-save me-1"></i>{{ isNew() ? 'Create draft' : 'Save changes' }}
+        </button>
+      </div>
+    }
+  </form>
+}

@@ -1,0 +1,381 @@
+<div class="report-viewer">
+  <div class="no-print">
+    <app-page-header [title]="entry()?.name ?? 'Report'" [subtitle]="entry()?.description ?? ''">
+      <a routerLink="/reports" class="btn btn-outline-secondary"><i class="bi bi-grid me-1"></i>All reports</a>
+      <button type="button" class="btn btn-outline-secondary" [disabled]="!result() || exporting()" (click)="exportCsv()">
+        @if (exporting()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        } @else {
+          <i class="bi bi-filetype-csv me-1"></i>
+        }
+        Export CSV
+      </button>
+      <button type="button" class="btn btn-outline-secondary" [disabled]="!result()" (click)="print()">
+        <i class="bi bi-printer me-1"></i>Print
+      </button>
+    </app-page-header>
+  </div>
+
+  @if (catalogLoading() && !entry()) {
+    <app-loading text="Loading report..." />
+  } @else if (catalogError()) {
+    <div class="alert alert-danger">{{ catalogError() }}</div>
+  } @else if (notFound()) {
+    <app-empty-state icon="bi-question-circle" title="Report not found" message="This report does not exist or is not available to you.">
+      <a routerLink="/reports" class="btn btn-primary btn-sm">Back to Report Center</a>
+    </app-empty-state>
+  } @else if (entry()) {
+    <form class="card mb-3 no-print" [formGroup]="form" (ngSubmit)="run()">
+      <div class="card-body">
+        <div class="row g-2 align-items-end">
+          @if (supports().has('from')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-from">From</label>
+              <input id="rf-from" type="date" class="form-control form-control-sm" formControlName="from" />
+            </div>
+          }
+          @if (supports().has('to')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-to">{{ toLabel() }}</label>
+              <input id="rf-to" type="date" class="form-control form-control-sm" formControlName="to" />
+            </div>
+          }
+          @if (supports().has('branchId')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-branch">Branch</label>
+              <select id="rf-branch" class="form-select form-select-sm" formControlName="branchId">
+                <option value="">All branches</option>
+                @for (o of branches(); track o.id) {
+                  <option [value]="o.id">{{ o.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (supports().has('collectionCenterId')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-center">Collection center</label>
+              <select id="rf-center" class="form-select form-select-sm" formControlName="collectionCenterId">
+                <option value="">All centers</option>
+                @for (o of centers(); track o.id) {
+                  <option [value]="o.id">{{ o.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (supports().has('shiftId')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-shift">Shift</label>
+              <select id="rf-shift" class="form-select form-select-sm" formControlName="shiftId">
+                <option value="">All shifts</option>
+                @for (o of shifts(); track o.id) {
+                  <option [value]="o.id">{{ o.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (supports().has('farmerId')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-farmer">Farmer</label>
+              <select id="rf-farmer" class="form-select form-select-sm" formControlName="farmerId">
+                <option value="">All farmers</option>
+                @for (o of farmers(); track o.id) {
+                  <option [value]="o.id">{{ o.code ? o.code + ' - ' : '' }}{{ o.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (supports().has('customerId')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-customer">Customer</label>
+              <select id="rf-customer" class="form-select form-select-sm" formControlName="customerId">
+                <option value="">All customers</option>
+                @for (o of customers(); track o.id) {
+                  <option [value]="o.id">{{ o.code ? o.code + ' - ' : '' }}{{ o.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (supports().has('productId')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-product">Product</label>
+              <select id="rf-product" class="form-select form-select-sm" formControlName="productId">
+                <option value="">All products</option>
+                @for (o of products(); track o.id) {
+                  <option [value]="o.id">{{ o.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (supports().has('categoryId')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-category">{{ categoryLabel() }}</label>
+              <select id="rf-category" class="form-select form-select-sm" formControlName="categoryId">
+                <option value="">All categories</option>
+                @for (o of categories(); track o.id) {
+                  <option [value]="o.id">{{ o.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (supports().has('itemId')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-item">Item</label>
+              <select id="rf-item" class="form-select form-select-sm" formControlName="itemId">
+                <option value="">All items</option>
+                @for (o of items(); track o.id) {
+                  <option [value]="o.id">{{ o.code ? o.code + ' - ' : '' }}{{ o.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (supports().has('status')) {
+            <div class="col-6 col-md-3 col-xl-2">
+              <label class="form-label small mb-1" for="rf-status">Status</label>
+              @if (statusOptions(); as opts) {
+                <select id="rf-status" class="form-select form-select-sm" formControlName="status">
+                  <option value="">All statuses</option>
+                  @for (s of opts; track s) {
+                    <option [value]="s">{{ s }}</option>
+                  }
+                </select>
+              } @else {
+                <input id="rf-status" type="text" class="form-control form-control-sm" formControlName="status" placeholder="Any" />
+              }
+            </div>
+          }
+          <div class="col-12 col-xl d-flex flex-wrap gap-2 ms-xl-auto justify-content-xl-end">
+            <button type="submit" class="btn btn-primary btn-sm" [disabled]="loading()">
+              <i class="bi bi-play-fill me-1"></i>Run report
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" [disabled]="loading()" (click)="reset()">Clear</button>
+          </div>
+        </div>
+
+        @if (supports().has('from') && supports().has('to')) {
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="text-muted small">Quick range:</span>
+            <button type="button" class="btn btn-outline-primary btn-sm py-0" (click)="applyPreset('today')">Today</button>
+            <button type="button" class="btn btn-outline-primary btn-sm py-0" (click)="applyPreset('yesterday')">Yesterday</button>
+            <button type="button" class="btn btn-outline-primary btn-sm py-0" (click)="applyPreset('thisMonth')">This month</button>
+            <button type="button" class="btn btn-outline-primary btn-sm py-0" (click)="applyPreset('lastMonth')">Last month</button>
+          </div>
+        }
+      </div>
+    </form>
+
+    <div class="print-only mb-3">
+      <h2 class="h5 mb-1">{{ entry()?.name }}</h2>
+      @if (appliedFilters().length) {
+        <div class="small">
+          @for (f of appliedFilters(); track f.label) {
+            <span class="me-3"><strong>{{ f.label }}:</strong> {{ f.value }}</span>
+          }
+        </div>
+      }
+      <div class="small text-muted">Generated {{ ranAt() | appDate: 'datetime' }}</div>
+    </div>
+
+    @if (loading()) {
+      <div class="card"><div class="card-body"><app-loading text="Running report..." /></div></div>
+    } @else if (error()) {
+      <div class="alert alert-danger d-flex align-items-center justify-content-between no-print">
+        <span>{{ error() }}</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="retry()">Retry</button>
+      </div>
+    } @else if (result()) {
+      @if (summary().length) {
+        <div class="row g-3 mb-3">
+          @for (s of summary(); track s.key) {
+            <div class="col-6 col-md-4 col-xl-2">
+              <app-kpi-card
+                [title]="s.label"
+                [value]="s.value"
+                [color]="s.color"
+                [format]="s.currency ? 'currency' : 'number'"
+                icon="bi-cash-stack"
+              />
+            </div>
+          }
+        </div>
+      }
+
+      <div class="card mb-3">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 no-print">
+          <span class="fw-semibold">
+            {{ totalRows() }} {{ totalRows() === 1 ? 'row' : 'rows' }}
+            @if (ranAt()) {
+              <span class="text-muted fw-normal small ms-2">updated {{ ranAt() | appDate: 'datetime' }}</span>
+            }
+          </span>
+          @if (totalRows() > pageSizeOptions[0]) {
+            <label class="d-flex align-items-center gap-2 small text-muted mb-0">
+              Rows per page
+              <select class="form-select form-select-sm w-auto" [value]="pageSize()" (change)="setPageSize($any($event.target).value)">
+                @for (n of pageSizeOptions; track n) {
+                  <option [value]="n" [selected]="n === pageSize()">{{ n }}</option>
+                }
+              </select>
+            </label>
+          }
+        </div>
+
+        @if (totalRows() === 0) {
+          <div class="card-body">
+            <app-empty-state icon="bi-inbox" title="No data" message="No records match the selected filters." />
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0 app-table report-table">
+              <thead>
+                <tr>
+                  @for (col of columns(); track col.key) {
+                    <th class="sortable" [class.text-end]="col.right" (click)="sortBy(col.key)">
+                      {{ col.label }}
+                      @if (sortKey() === col.key) {
+                        <i class="bi sort-icon no-print" [class.bi-caret-up-fill]="sortDir() === 'asc'" [class.bi-caret-down-fill]="sortDir() === 'desc'"></i>
+                      }
+                    </th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of visibleRows(); track $index) {
+                  <tr>
+                    @for (col of columns(); track col.key) {
+                      <td [class.text-end]="col.right" [class.text-nowrap]="col.right || col.kind === 'date'">
+                        <ng-container *ngTemplateOutlet="cell; context: { $implicit: col, value: row[col.key] }" />
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+              @if (hasTotalsRow()) {
+                <tfoot>
+                  <tr class="report-total-row">
+                    @for (col of columns(); track col.key; let first = $first) {
+                      <td [class.text-end]="col.right" [class.text-nowrap]="col.right">
+                        @if (totals()[col.key] !== null && totals()[col.key] !== undefined) {
+                          <ng-container *ngTemplateOutlet="cell; context: { $implicit: col, value: totals()[col.key] }" />
+                        } @else if (first) {
+                          Total
+                        }
+                      </td>
+                    }
+                  </tr>
+                </tfoot>
+              }
+            </table>
+          </div>
+          <div class="dt-footer no-print">
+            <app-pagination [page]="page()" [pageSize]="pageSize()" [total]="totalRows()" (pageChange)="page.set($event)" />
+          </div>
+        }
+      </div>
+
+      @if (extraScalars().length) {
+        <div class="card mb-3">
+          <div class="card-body d-flex flex-wrap gap-4">
+            @for (s of extraScalars(); track s.label) {
+              <div>
+                <div class="text-muted small">{{ s.label }}</div>
+                <div class="fw-semibold">{{ s.text }}</div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @for (sec of extraSections(); track sec.key) {
+        <div class="card mb-3">
+          <div class="card-header fw-semibold">{{ sec.title }}</div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div [class]="sec.chartDatasets.length ? 'col-lg-7' : 'col-12'">
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0 app-table">
+                    <thead>
+                      <tr>
+                        @for (col of sec.columns; track col.key) {
+                          <th [class.text-end]="col.right">{{ col.label }}</th>
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (row of sec.rows; track $index) {
+                        <tr>
+                          @for (col of sec.columns; track col.key) {
+                            <td [class.text-end]="col.right">
+                              <ng-container *ngTemplateOutlet="cell; context: { $implicit: col, value: row[col.key] }" />
+                            </td>
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              @if (sec.chartDatasets.length) {
+                <div class="col-lg-5">
+                  <app-chart [type]="sec.chartType" [labels]="sec.chartLabels" [datasets]="sec.chartDatasets" [height]="260" />
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    } @else {
+      <div class="card">
+        <div class="card-body">
+          <app-empty-state icon="bi-funnel" title="Ready to run" message="Choose filters and press Run report." />
+        </div>
+      </div>
+    }
+  }
+</div>
+
+<ng-template #cell let-col let-v="value">
+  @switch (col.kind) {
+    @case ('currency') {
+      {{ v | appCurrency }}
+    }
+    @case ('number') {
+      {{ v | appNumber: 3 }}
+    }
+    @case ('percent') {
+      @if (v !== null && v !== undefined && v !== '') {
+        {{ v | appNumber: 2 }}%
+      } @else {
+        &mdash;
+      }
+    }
+    @case ('date') {
+      {{ v | appDate }}
+    }
+    @case ('datetime') {
+      {{ v | appDate: 'datetime' }}
+    }
+    @case ('boolean') {
+      @if (v === null || v === undefined || v === '') {
+        &mdash;
+      } @else if (v === true || v === 'true' || v === 1 || v === '1') {
+        Yes
+      } @else {
+        No
+      }
+    }
+    @case ('badge') {
+      @if (v) {
+        <app-status-badge [status]="v" />
+      } @else {
+        &mdash;
+      }
+    }
+    @default {
+      @if (v === null || v === undefined || v === '') {
+        &mdash;
+      } @else {
+        {{ v }}
+      }
+    }
+  }
+</ng-template>

@@ -1,0 +1,131 @@
+<div class="card dt-card">
+  <div class="dt-toolbar">
+    @if (searchable()) {
+      <div class="dt-search">
+        <i class="bi bi-search"></i>
+        <input
+          type="search"
+          class="form-control form-control-sm"
+          [placeholder]="searchPlaceholder()"
+          [value]="searchText()"
+          (input)="onSearchInput($event)"
+          aria-label="Search"
+        />
+      </div>
+    }
+    <div class="dt-filters"><ng-content select="[tableFilters]" /></div>
+    <div class="dt-toolbar-end">
+      <ng-content select="[tableActions]" />
+      @if (showPageSize()) {
+        <label class="dt-size">
+          <span class="text-muted small">Rows</span>
+          <select class="form-select form-select-sm" (change)="onPageSize($event)" aria-label="Rows per page">
+            @for (size of pageSizeOptions(); track size) {
+              <option [value]="size" [selected]="size === curPageSize()">{{ size }}</option>
+            }
+          </select>
+        </label>
+      }
+    </div>
+  </div>
+
+  <div class="table-responsive dt-scroll">
+    <table class="table table-hover align-middle mb-0 app-table" [class.dt-loading]="loading() && items().length > 0">
+      <thead>
+        <tr>
+          @for (col of columns(); track col.key) {
+            <th
+              scope="col"
+              [style.width]="col.width ?? null"
+              [class]="alignClass(col)"
+              [class.sortable]="col.sortable"
+              (click)="toggleSort(col)"
+            >
+              {{ col.label }}
+              @if (isSorted(col)) {
+                <i class="bi sort-icon" [class.bi-caret-up-fill]="curSortDir() === 'asc'" [class.bi-caret-down-fill]="curSortDir() === 'desc'"></i>
+              } @else if (col.sortable) {
+                <i class="bi bi-chevron-expand sort-icon text-muted"></i>
+              }
+            </th>
+          }
+          @if (actionsTpl()) {
+            <th scope="col" class="text-end dt-actions-col">Actions</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading() && items().length === 0) {
+          <tr>
+            <td [attr.colspan]="colSpan()" class="text-center py-5">
+              <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+              <span class="text-muted">Loading...</span>
+            </td>
+          </tr>
+        } @else if (errorText()) {
+          <tr>
+            <td [attr.colspan]="colSpan()" class="text-center py-5">
+              <i class="bi bi-exclamation-octagon text-danger fs-3 d-block mb-2"></i>
+              <div class="text-danger mb-2">{{ errorText() }}</div>
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="retry.emit()">
+                <i class="bi bi-arrow-clockwise"></i> Retry
+              </button>
+            </td>
+          </tr>
+        } @else if (items().length === 0) {
+          <tr>
+            <td [attr.colspan]="colSpan()" class="p-0">
+              <app-empty-state [title]="emptyTitle()" [message]="emptyMessage()" />
+            </td>
+          </tr>
+        } @else {
+          @for (row of items(); track trackRow($index, row)) {
+            <tr>
+              @for (col of columns(); track col.key) {
+                @let value = cellValue(row, col.key);
+                @let tpl = templateFor(col);
+                <td [class]="alignClass(col)">
+                  @if (tpl) {
+                    <ng-container *ngTemplateOutlet="tpl; context: { $implicit: row, row: row, value: value, column: col }" />
+                  } @else {
+                    @switch (col.type) {
+                      @case ('number') {
+                        {{ value | appNumber }}
+                      }
+                      @case ('currency') {
+                        {{ value | appCurrency }}
+                      }
+                      @case ('date') {
+                        {{ value | appDate }}
+                      }
+                      @case ('datetime') {
+                        {{ value | appDate: 'datetime' }}
+                      }
+                      @case ('badge') {
+                        <app-status-badge [status]="value" />
+                      }
+                      @default {
+                        {{ value ?? '—' }}
+                      }
+                    }
+                  }
+                </td>
+              }
+              @if (actionsTpl(); as actions) {
+                <td class="text-end text-nowrap dt-actions-col">
+                  <ng-container *ngTemplateOutlet="actions; context: { $implicit: row, row: row }" />
+                </td>
+              }
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (showPagination() && total() > 0) {
+    <div class="dt-footer">
+      <app-pagination [page]="curPage()" [pageSize]="curPageSize()" [total]="total()" (pageChange)="onPage($event)" />
+    </div>
+  }
+</div>

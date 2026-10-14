@@ -1,0 +1,188 @@
+<app-page-header title="Collection Entry" subtitle="Fast data entry: center, shift and date stay selected between entries">
+  <a class="btn btn-outline-secondary" routerLink="/collection"><i class="bi bi-grid me-1"></i>Shift dashboard</a>
+  <a class="btn btn-outline-secondary" routerLink="/collection/history"><i class="bi bi-clock-history me-1"></i>History</a>
+</app-page-header>
+
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <div class="row g-3 mb-4">
+    <div class="col-lg-8">
+      <div class="card mb-3">
+        <div class="card-body pb-1">
+          <div class="row">
+            <div class="col-md-4">
+              <app-form-field label="Collection center" inputId="entryCenter" [control]="form.controls.collectionCenterId">
+                <select id="entryCenter" class="form-select" formControlName="collectionCenterId">
+                  <option [ngValue]="null">Select center</option>
+                  @for (c of centers(); track c.id) {
+                    <option [ngValue]="c.id">{{ c.name }}</option>
+                  }
+                </select>
+              </app-form-field>
+            </div>
+            <div class="col-md-4">
+              <app-form-field label="Shift" inputId="entryShift" [control]="form.controls.shiftId">
+                <select id="entryShift" class="form-select" formControlName="shiftId">
+                  <option [ngValue]="null">Select shift</option>
+                  @for (s of shiftOptions(); track s.id) {
+                    <option [ngValue]="s.id">{{ shiftLabel(s) }}</option>
+                  }
+                </select>
+              </app-form-field>
+            </div>
+            <div class="col-md-4">
+              <app-form-field label="Date" inputId="entryDate" [control]="form.controls.collectionDate" hint="Cannot be in the future">
+                <input id="entryDate" type="date" class="form-control" formControlName="collectionDate" [max]="today" />
+              </app-form-field>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body pb-1">
+          <div class="row">
+            <div class="col-md-8">
+              <app-form-field label="Farmer" inputId="entryFarmer" [control]="form.controls.farmerId" hint="Search by code or name (active farmers only)">
+                <app-search-select
+                  inputId="entryFarmer"
+                  placeholder="Type farmer code or name..."
+                  [options]="farmers()"
+                  [value]="form.controls.farmerId.value"
+                  [invalid]="form.controls.farmerId.invalid && form.controls.farmerId.touched"
+                  (valueChange)="setFarmer($event)"
+                />
+              </app-form-field>
+            </div>
+            <div class="col-md-4">
+              <app-form-field label="Milk type" inputId="entryMilk" [control]="form.controls.milkType">
+                <select id="entryMilk" class="form-select" formControlName="milkType">
+                  @for (m of milkTypes; track m) {
+                    <option [value]="m">{{ m }}</option>
+                  }
+                </select>
+              </app-form-field>
+            </div>
+            <div class="col-md-4">
+              <app-form-field label="Quantity (L)" inputId="entryQty" [control]="form.controls.quantityLiters">
+                <input id="entryQty" type="number" step="0.001" min="0" class="form-control" formControlName="quantityLiters" />
+              </app-form-field>
+            </div>
+            <div class="col-md-2 col-6">
+              <app-form-field label="FAT %" inputId="entryFat" [control]="form.controls.fat">
+                <input id="entryFat" type="number" step="0.01" class="form-control" formControlName="fat" />
+              </app-form-field>
+            </div>
+            <div class="col-md-2 col-6">
+              <app-form-field label="SNF %" inputId="entrySnf" [control]="form.controls.snf">
+                <input id="entrySnf" type="number" step="0.01" class="form-control" formControlName="snf" />
+              </app-form-field>
+            </div>
+            <div class="col-md-2 col-6">
+              <app-form-field label="CLR" inputId="entryClr" [control]="form.controls.clr">
+                <input id="entryClr" type="number" step="0.01" class="form-control" formControlName="clr" />
+              </app-form-field>
+            </div>
+            <div class="col-md-2 col-6">
+              <app-form-field label="Temp (°C)" inputId="entryTemp" [control]="form.controls.temperature">
+                <input id="entryTemp" type="number" step="0.1" class="form-control" formControlName="temperature" />
+              </app-form-field>
+            </div>
+            @if (tanks().length > 0) {
+              <div class="col-md-4">
+                <app-form-field label="Milk tank" inputId="entryTank" hint="Optional">
+                  <select id="entryTank" class="form-select" formControlName="milkTankId">
+                    <option [ngValue]="null">No tank</option>
+                    @for (t of tanks(); track t.id) {
+                      <option [ngValue]="t.id">{{ tankLabel(t) }}</option>
+                    }
+                  </select>
+                </app-form-field>
+              </div>
+            }
+            <div [class]="tanks().length > 0 ? 'col-md-8' : 'col-md-12'">
+              <app-form-field label="Remarks" inputId="entryRemarks" [control]="form.controls.remarks">
+                <input id="entryRemarks" type="text" maxlength="500" class="form-control" formControlName="remarks" />
+              </app-form-field>
+            </div>
+            <div class="col-12">
+              <div class="form-check mb-3">
+                <input id="entryWater" type="checkbox" class="form-check-input" formControlName="waterAdded" />
+                <label class="form-check-label" for="entryWater">Water / adulteration suspected (marks the quality test as Fail)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+          <button type="button" class="btn btn-light" (click)="resetForNext()">Clear</button>
+          <button type="submit" class="btn btn-primary" [disabled]="saving()">
+            @if (saving()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            <i class="bi bi-save me-1"></i>Save &amp; next
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Rate preview</span>
+          @if (previewLoading()) {
+            <span class="spinner-border spinner-border-sm text-primary"></span>
+          }
+        </div>
+        <div class="card-body">
+          @if (preview().rate; as r) {
+            <div class="text-muted small mb-2">{{ r.rateChartName }}</div>
+            <dl class="row mb-2">
+              <dt class="col-7 fw-normal text-muted">Base rate / L</dt><dd class="col-5 text-end mb-1">{{ r.baseRate | appCurrency }}</dd>
+              <dt class="col-7 fw-normal text-muted">Bonus / L</dt><dd class="col-5 text-end mb-1 text-success">{{ r.bonus | appCurrency }}</dd>
+              <dt class="col-7 fw-normal text-muted">Penalty / L</dt><dd class="col-5 text-end mb-1 text-danger">{{ r.penalty | appCurrency }}</dd>
+              <dt class="col-7">Final rate / L</dt><dd class="col-5 text-end fw-semibold mb-1">{{ r.finalRate | appCurrency }}</dd>
+            </dl>
+            <div class="border-top pt-2 d-flex justify-content-between align-items-baseline">
+              <span class="text-muted">Amount</span>
+              <span class="fs-4 fw-semibold">{{ r.amount | appCurrency }}</span>
+            </div>
+            @if (form.controls.quantityLiters.value === null) {
+              <div class="form-text">Enter the quantity to see the amount.</div>
+            }
+          } @else if (preview().error; as e) {
+            <div class="alert alert-warning mb-0 small">{{ e }}</div>
+          } @else {
+            <p class="text-muted mb-0">Select a center and enter FAT and SNF to preview the rate.</p>
+          }
+        </div>
+      </div>
+
+      @if (lastSaved(); as s) {
+        <div class="card border-success">
+          <div class="card-body">
+            <div class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Last saved: {{ s.number }}</div>
+            <div class="small text-muted">Rate {{ s.rate | appCurrency }} / L, amount {{ s.amount | appCurrency }}, status {{ s.status }}</div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</form>
+
+<h6 class="section-title">Recent entries for this center, shift and date</h6>
+<app-data-table
+  [columns]="recentColumns"
+  [items]="recent()"
+  [total]="recent().length"
+  [loading]="recentLoading()"
+  [error]="recentError()"
+  [searchable]="false"
+  [showPageSize]="false"
+  [showPagination]="false"
+  emptyTitle="No entries yet"
+  emptyMessage="Saved entries for the selected center, shift and date appear here."
+  (retry)="loadRecent()"
+>
+  <ng-template appColumn="farmerName" let-row>
+    {{ row.farmerName }} <span class="text-muted small">{{ row.farmerCode }}</span>
+  </ng-template>
+</app-data-table>

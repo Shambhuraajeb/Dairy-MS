@@ -1,0 +1,57 @@
+<app-page-header title="Collection History" subtitle="All milk collections with quality, rate and adjustment details">
+  <a *appHasPermission="'collection.create'" class="btn btn-primary" routerLink="/collection/entry">
+    <i class="bi bi-plus-lg me-1"></i>New Entry
+  </a>
+</app-page-header>
+
+<app-collection-filters
+  [value]="filters()"
+  [shifts]="shifts()"
+  [statuses]="statuses"
+  [showFarmer]="true"
+  (valueChange)="onFilters($event)"
+/>
+
+<app-data-table
+  [columns]="columns"
+  [items]="items()"
+  [total]="total()"
+  [loading]="loading()"
+  [error]="error()"
+  [page]="query.page ?? 1"
+  [pageSize]="query.pageSize ?? 20"
+  searchPlaceholder="Search collection no., farmer name or code..."
+  emptyTitle="No collections found"
+  (queryChange)="onQuery($event)"
+  (retry)="load()"
+>
+  <ng-template appColumn="collectionNumber" let-row>
+    {{ row.collectionNumber }}
+    @if (row.adjustedFlag) {
+      <span class="badge text-bg-info ms-1">Adjusted</span>
+    }
+  </ng-template>
+  <ng-template appColumn="farmerName" let-row>
+    {{ row.farmerName }} <span class="text-muted small">{{ row.farmerCode }}</span>
+  </ng-template>
+  <ng-template appColumn="qualityResult" let-row>
+    @if (row.qualityResult) {
+      <app-status-badge [status]="row.qualityResult" [color]="qualityColor(row.qualityResult)" />
+    } @else {
+      <span class="text-muted">—</span>
+    }
+  </ng-template>
+  <ng-template appRowActions let-row>
+    <button type="button" class="btn btn-sm btn-outline-secondary me-1" (click)="detailId.set(row.id)">
+      <i class="bi bi-eye"></i> View
+    </button>
+    @if (canAdjust(row)) {
+      <button *appHasPermission="'collection.update'" type="button" class="btn btn-sm btn-outline-warning" (click)="openAdjust(row)">
+        <i class="bi bi-sliders"></i> Adjust
+      </button>
+    }
+  </ng-template>
+</app-data-table>
+
+<app-collection-detail-modal [collectionId]="detailId()" (closed)="detailId.set(null)" (adjust)="openAdjust($event)" />
+<app-adjust-collection-modal [collection]="adjustTarget()" (closed)="adjustTarget.set(null)" (saved)="onAdjusted()" />

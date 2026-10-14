@@ -1,0 +1,153 @@
+<app-page-header title="Shift Dashboard" subtitle="Live collection summary for a date, center and shift">
+  <a *appHasPermission="'collection.create'" class="btn btn-primary" routerLink="/collection/entry" [queryParams]="entryParams()">
+    <i class="bi bi-pencil-square me-1"></i>New Entry
+  </a>
+  <a class="btn btn-outline-secondary" routerLink="/collection/history" [queryParams]="dayParams()">
+    <i class="bi bi-clock-history me-1"></i>History
+  </a>
+  @if (approvalLink(); as link) {
+    <a class="btn btn-outline-warning" [routerLink]="link">
+      <i class="bi bi-check2-square me-1"></i>Approvals
+    </a>
+  }
+  <a class="btn btn-outline-secondary" routerLink="/collection/tanks">
+    <i class="bi bi-moisture me-1"></i>Milk Tanks
+  </a>
+</app-page-header>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label" for="dashDate">Date</label>
+        <div class="input-group">
+          <input id="dashDate" type="date" class="form-control" [value]="selDate()" (change)="onDate($event)" />
+          <button type="button" class="btn btn-outline-secondary" (click)="today()">Today</button>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="dashCenter">Collection center</label>
+        <select id="dashCenter" class="form-select" (change)="onCenter($event)">
+          <option value="" [selected]="selCenter() === null">All centers</option>
+          @for (c of centers(); track c.id) {
+            <option [value]="c.id" [selected]="selCenter() === c.id">{{ c.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="dashShift">Shift</label>
+        <select id="dashShift" class="form-select" (change)="onShift($event)">
+          <option value="" [selected]="selShift() === null">Auto (current shift)</option>
+          @for (s of shiftOptions(); track s.id) {
+            <option [value]="s.id" [selected]="selShift() === s.id">{{ shiftLabel(s) }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-1">
+        <button type="button" class="btn btn-outline-primary w-100" (click)="load()" [disabled]="loading()" aria-label="Refresh">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (error()) {
+  <div class="alert alert-danger d-flex justify-content-between align-items-center">
+    <span>{{ error() }}</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="load()">Retry</button>
+  </div>
+} @else if (loading() && !data()) {
+  <app-loading text="Loading dashboard..." />
+} @else if (data(); as d) {
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <h5 class="mb-0">{{ d.shiftName ?? 'No shift selected' }}</h5>
+    @if (d.startTime) {
+      <span class="text-muted">{{ trimTime(d.startTime) }} - {{ trimTime(d.endTime) }}</span>
+    }
+    @if (d.isCurrentShift) {
+      <span class="badge text-bg-success">Current shift</span>
+    }
+    @if (loading()) {
+      <span class="spinner-border spinner-border-sm text-primary"></span>
+    }
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <app-kpi-card title="Farmers served" [value]="summary()?.farmersServed ?? 0" icon="bi-people" color="info"
+        [subtitle]="(summary()?.totalCollections ?? 0) + ' collections'" link="/collection/history" [queryParams]="dayParams()" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-kpi-card title="Liters collected" [value]="summary()?.totalLiters ?? 0" icon="bi-droplet-fill" color="primary" suffix="L"
+        [subtitle]="acceptedLabel()" link="/collection/history" [queryParams]="dayParams()" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-kpi-card title="Average FAT" [value]="summary()?.avgFat" icon="bi-moisture" color="secondary" suffix="%"
+        link="/collection/quality" [queryParams]="dayParams()" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-kpi-card title="Average SNF" [value]="summary()?.avgSnf" icon="bi-clipboard-data" color="secondary" suffix="%"
+        link="/collection/quality" [queryParams]="dayParams()" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-kpi-card title="Accepted" [value]="summary()?.acceptedCount ?? 0" icon="bi-check-circle" color="success"
+        [subtitle]="(summary()?.approvedCount ?? 0) + ' approved'" link="/collection/history" [queryParams]="dayParams()" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-kpi-card title="Rejected" [value]="summary()?.rejectedCount ?? 0" icon="bi-x-octagon" color="danger"
+        [subtitle]="(summary()?.rejectedLiters ?? 0) + ' L rejected'" link="/collection/rejections" [queryParams]="dayParams()" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-kpi-card title="Pending approvals" [value]="d.totalPendingApprovals" icon="bi-hourglass-split" color="warning"
+        subtitle="all dates, selected center" [link]="approvalLink()" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-kpi-card title="Milk value" [value]="summary()?.totalAmount ?? 0" icon="bi-currency-rupee" color="success" format="currency" />
+    </div>
+  </div>
+
+  <h6 class="section-title">All shifts on {{ selDate() }}</h6>
+  <div class="card mb-4">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 app-table">
+        <thead>
+          <tr>
+            <th>Shift</th>
+            <th>Center</th>
+            <th class="text-end">Farmers</th>
+            <th class="text-end">Collections</th>
+            <th class="text-end">Liters</th>
+            <th class="text-end">Rejected (L)</th>
+            <th class="text-end">Avg FAT</th>
+            <th class="text-end">Avg SNF</th>
+            <th class="text-end">Pending</th>
+            <th class="text-end">Amount</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of d.shifts; track r.shiftId + '-' + r.collectionCenterId) {
+            <tr [class.table-active]="r.shiftId === d.shiftId && (selCenter() === null || r.collectionCenterId === selCenter())">
+              <td>{{ r.shiftName }} <span class="text-muted small">{{ trimTime(r.startTime) }}-{{ trimTime(r.endTime) }}</span></td>
+              <td>{{ r.collectionCenterName ?? 'All centers' }}</td>
+              <td class="text-end">{{ r.farmersServed }}</td>
+              <td class="text-end">{{ r.totalCollections }}</td>
+              <td class="text-end">{{ r.totalLiters | appNumber: 3 }}</td>
+              <td class="text-end">{{ r.rejectedLiters | appNumber: 3 }}</td>
+              <td class="text-end">{{ r.avgFat | appNumber }}</td>
+              <td class="text-end">{{ r.avgSnf | appNumber }}</td>
+              <td class="text-end">{{ r.pendingApprovals }}</td>
+              <td class="text-end">{{ r.totalAmount | appCurrency }}</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="pickRow(r.shiftId, r.collectionCenterId)">View</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="11" class="text-center text-muted py-4">No shifts configured.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}
